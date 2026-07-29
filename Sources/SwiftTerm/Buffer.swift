@@ -417,7 +417,12 @@ public final class Buffer {
     }
     
     public var isReflowEnabled: Bool {
-        return hasScrollback
+        // EDev fork: disable reflow (rewrap-on-resize) while keeping scrollback.
+        // SwiftTerm's reflow rewraps existing lines on resize, but zsh/powerlevel10k
+        // redraw the prompt on SIGWINCH assuming the terminal does NOT reflow (xterm
+        // behaviour), so reflow leaves duplicated prompt lines on every resize.
+        // Returning false matches xterm/Terminal.app and removes the duplicates.
+        return false
     }
     
     public func resize (newCols : Int, newRows : Int)
