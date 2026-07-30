@@ -285,6 +285,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     // Attribute dictionary, maps a console attribute (color, flags) to the corresponding dictionary
     // of attributes for an NSAttributedString
     var attributes: [Attribute: [NSAttributedString.Key:Any]] = [:]
+    var linkAttributes: [Attribute: [NSAttributedString.Key:Any]] = [:]
     var urlAttributes: [Attribute: [NSAttributedString.Key:Any]] = [:]
     
     
@@ -888,6 +889,26 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// Controls how link tracking resolves hovered links:
     /// `.explicit` = OSC 8 only, `.implicit` = explicit + implicit fallback, `.none` = off.
     public var linkReporting: LinkReporting = .implicit
+
+    /// Optional foreground used for explicit OSC 8 links at rest. `nil` keeps
+    /// the color emitted by the terminal application.
+    public var linkForegroundColor: NSColor? {
+        didSet {
+            resetCaches()
+            terminal.updateFullScreen()
+            queuePendingDisplay()
+        }
+    }
+
+    /// Optional foreground used while a link is highlighted. `nil` keeps the
+    /// resting link color (or the terminal application's foreground).
+    public var linkHighlightColor: NSColor? {
+        didSet {
+            resetCaches()
+            terminal.updateFullScreen()
+            queuePendingDisplay()
+        }
+    }
 
     /// Controls link highlighting and link activation behavior.
     public var linkHighlightMode: LinkHighlightMode = .hoverWithModifier {

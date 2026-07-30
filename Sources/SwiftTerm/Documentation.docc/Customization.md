@@ -124,6 +124,18 @@ terminalView.linkReporting = .implicit  // Default: explicit first, then implici
 
 Important: `.implicit` means "explicit + implicit fallback", not "implicit only."
 
+On Apple platforms, hosts can optionally normalize the resting foreground of
+explicit OSC 8 links and apply a different color only while a link is
+highlighted:
+
+```swift
+terminalView.linkForegroundColor = .textColor
+terminalView.linkHighlightColor = .systemBlue
+```
+
+Both properties default to `nil`, which preserves the foreground emitted by the
+terminal application.
+
 Link activation is also gated by `linkHighlightMode`. The reporting mode chooses
 how links are discovered during tracking, while highlight mode decides whether a
 click/tap is allowed to open the link.

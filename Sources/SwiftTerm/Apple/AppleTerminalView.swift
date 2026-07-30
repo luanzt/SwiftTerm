@@ -59,6 +59,15 @@ public enum LinkHighlightMode {
     case alwaysWithModifier
 }
 
+enum LinkRenderState: Equatable {
+    /// Ordinary terminal text.
+    case none
+    /// An explicit OSC 8 link that is not currently highlighted.
+    case explicit
+    /// A link currently highlighted by the configured interaction mode.
+    case highlighted
+}
+
 /// A rendered fragment that starts at a specific column and contains a run of
 /// characters that all occupy the same number of columns.
 struct ViewLineSegment {
@@ -136,6 +145,7 @@ extension TerminalView {
     func resetCaches ()
     {
         self.attributes = [:]
+        self.linkAttributes = [:]
         self.urlAttributes = [:]
         self.colors = Array(repeating: nil, count: 256)
         self.trueColors = [:]
@@ -515,10 +525,22 @@ extension TerminalView {
     //
     // Given a vt100 attribute, return the NSAttributedString attributes used to render it
     //
-    func getAttributes (_ attribute: Attribute, withUrl: Bool) -> [NSAttributedString.Key:Any]?
+    func getAttributes (
+        _ attribute: Attribute,
+        linkState: LinkRenderState = .none
+    ) -> [NSAttributedString.Key:Any]?
     {
-        if let result = withUrl ? urlAttributes [attribute] : attributes [attribute] {
-            return result
+        let cached: [NSAttributedString.Key: Any]?
+        switch linkState {
+        case .none:
+            cached = attributes[attribute]
+        case .explicit:
+            cached = linkAttributes[attribute]
+        case .highlighted:
+            cached = urlAttributes[attribute]
+        }
+        if let cached {
+            return cached
         }
 
         let flags = attribute.style
@@ -581,16 +603,25 @@ extension TerminalView {
             nsattr [.strikethroughStyle] = NSUnderlineStyle.single.rawValue
         }
 
-        if withUrl {
+        switch linkState {
+        case .none:
+            attributes[attribute] = nsattr
+
+        case .explicit:
+            if let linkForegroundColor {
+                nsattr[.foregroundColor] = linkForegroundColor
+            }
+            linkAttributes[attribute] = nsattr
+
+        case .highlighted:
+            let highlightedColor = linkHighlightColor
+                ?? linkForegroundColor
+                ?? fgColor
+            nsattr[.foregroundColor] = highlightedColor
             nsattr [.underlineStyle] = NSUnderlineStyle.single.rawValue
-            nsattr [.underlineColor] = fgColor
+            nsattr [.underlineColor] = highlightedColor
             nsattr [SwiftTermUnderlineStyleKey] = Int(UnderlineStyle.dashed.rawValue)
-            
-            // Add to cache
             urlAttributes [attribute] = nsattr
-        } else {
-            // Just add to cache
-            attributes [attribute] = nsattr
         }
         return nsattr
     }
@@ -702,7 +733,7 @@ extension TerminalView {
         var pendingText = ""
         var pendingAttrs: [NSAttributedString.Key: Any]? = nil
         var lastAttr: Attribute? = nil
-        var lastHasUrl = false
+        var lastLinkState = LinkRenderState.none
         var lastIsSelected = false
 
         func flushPending() {
@@ -717,7 +748,10 @@ extension TerminalView {
             let width = max(1, Int(ch.width))
             let attr = ch.attribute
             let hasUrl = shouldUnderlineLink(row: row, column: col, width: width, cell: ch)
-            guard let attributes = getAttributes(attr, withUrl: hasUrl) else {
+            let linkState: LinkRenderState = hasUrl
+                ? .highlighted
+                : (ch.hasPayload ? .explicit : .none)
+            guard let attributes = getAttributes(attr, linkState: linkState) else {
                 flushPending()
                 if let finished = builder?.buildIfNeeded() {
                     segments.append(finished)
@@ -740,10 +774,10 @@ extension TerminalView {
             let isSelected = isColumnSelected(selectionColumns, column: col, width: width)
 
             // Flush batch when attributes change
-            if attr != lastAttr || hasUrl != lastHasUrl || isSelected != lastIsSelected {
+            if attr != lastAttr || linkState != lastLinkState || isSelected != lastIsSelected {
                 flushPending()
                 lastAttr = attr
-                lastHasUrl = hasUrl
+                lastLinkState = linkState
                 lastIsSelected = isSelected
             }
 

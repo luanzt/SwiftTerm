@@ -135,6 +135,38 @@ final class SelectionTests: TerminalDelegate {
         #expect((attributes[.underlineColor] as? NSColor)?.isEqual(selectionForeground) == true)
         #expect((attributes[.strikethroughColor] as? NSColor)?.isEqual(selectionForeground) == true)
     }
+
+    @Test func testLinkColorsChangeOnlyWhileHighlighted() {
+        let view = TerminalView(frame: CGRect(origin: .zero, size: .init(width: 320, height: 160)))
+        let restingColor = NSColor(srgbRed: 0.72, green: 0.74, blue: 0.77, alpha: 1)
+        let highlightedColor = NSColor(srgbRed: 0.40, green: 0.65, blue: 0.95, alpha: 1)
+        view.linkForegroundColor = restingColor
+        view.linkHighlightColor = highlightedColor
+        view.terminal.feed(text: "\u{001B}]8;;https://example.com\u{0007}link\u{001B}]8;;\u{0007}")
+
+        let restingLine = view.buildAttributedString(
+            row: 0,
+            line: view.terminal.displayBuffer.lines[0],
+            cols: view.terminal.cols)
+        let restingAttributes = restingLine.segments[0].attributedString.attributes(
+            at: 0,
+            effectiveRange: nil)
+        #expect((restingAttributes[.foregroundColor] as? NSColor)?.isEqual(restingColor) == true)
+        #expect(restingAttributes[.underlineStyle] == nil)
+
+        view.commandActive = true
+        view.linkHighlightRange = [.init(row: 0, range: 0..<4)]
+        let highlightedLine = view.buildAttributedString(
+            row: 0,
+            line: view.terminal.displayBuffer.lines[0],
+            cols: view.terminal.cols)
+        let highlightedAttributes = highlightedLine.segments[0].attributedString.attributes(
+            at: 0,
+            effectiveRange: nil)
+        #expect((highlightedAttributes[.foregroundColor] as? NSColor)?.isEqual(highlightedColor) == true)
+        #expect((highlightedAttributes[.underlineColor] as? NSColor)?.isEqual(highlightedColor) == true)
+        #expect(highlightedAttributes[.underlineStyle] != nil)
+    }
 #endif
 
     // MARK: - Selection Tests Ported from Ghostty
