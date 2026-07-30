@@ -976,7 +976,16 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     
     public override func cursorUpdate(with event: NSEvent)
     {
-        NSCursor.iBeam.set ()
+        let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else {
+            NSCursor.iBeam.set()
+            return
+        }
+        let hit = calculateMouseHit(with: event).grid
+        linkCursor(
+            at: hit,
+            hasCommandModifier: commandActive || event.modifierFlags.contains(.command)
+        ).set()
     }
     
     func makeFirstResponder ()
@@ -1190,6 +1199,11 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
                 queuePendingDisplay()
             }
         }
+        if let hit = currentMouseHit() {
+            linkCursor(at: hit, hasCommandModifier: false).set()
+        } else {
+            NSCursor.iBeam.set()
+        }
     }
     
     // If true, the Command key has been pressed
@@ -1209,8 +1223,10 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
                 }
                 reportLink(at: hit)
                 updateHoverLink(at: hit)
+                linkCursor(at: hit, hasCommandModifier: true).set()
             } else if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
+                NSCursor.iBeam.set()
             }
             if linkHighlightMode == .alwaysWithModifier {
                 terminal.updateFullScreen()
@@ -1244,6 +1260,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     
     public override func mouseExited(with event: NSEvent) {
         turnOffUrlPreview()
+        NSCursor.iBeam.set()
         if linkHighlightMode == .hover || linkHighlightMode == .hoverWithModifier {
             let oldRange = linkHighlightRange
             linkHighlightRange = nil
@@ -2675,6 +2692,24 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         }
     }
 
+    /// Returns a pointing hand only when the cell is a link that the current
+    /// highlight mode allows the user to activate.
+    func linkCursor(at position: Position, hasCommandModifier: Bool) -> NSCursor
+    {
+        guard terminal.linkMatch(
+            at: .buffer(position),
+            mode: .explicitAndImplicit
+        ) != nil else {
+            return .iBeam
+        }
+        switch linkHighlightMode {
+        case .always, .hover:
+            return .pointingHand
+        case .alwaysWithModifier, .hoverWithModifier:
+            return hasCommandModifier ? .pointingHand : .iBeam
+        }
+    }
+
     func currentMouseHit() -> Position?
     {
         guard let window else {
@@ -2690,7 +2725,10 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             // to the first responder regardless of the pointer's location. Ignore moves
             // outside our bounds so we do not report cells the pointer is not over.
             let point = convert(event.locationInWindow, from: nil)
-            if !bounds.contains(point) { return }
+            if !bounds.contains(point) {
+                NSCursor.iBeam.set()
+                return
+            }
         }
         let hit = calculateMouseHit(with: event)
         if commandActive {
@@ -2700,6 +2738,10 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             reportLink(at: hit.grid)
         }
         updateHoverLink(at: hit.grid)
+        linkCursor(
+            at: hit.grid,
+            hasCommandModifier: commandActive || event.modifierFlags.contains(.command)
+        ).set()
         
         if terminal.mouseMode.sendMotionEvent() {
             let flags = encodeMouseEvent(with: event, overwriteRelease: true)

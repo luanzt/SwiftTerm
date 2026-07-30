@@ -134,7 +134,8 @@ terminalView.linkHighlightColor = .systemBlue
 ```
 
 Both properties default to `nil`, which preserves the foreground emitted by the
-terminal application.
+terminal application. On macOS, the pointer becomes a pointing hand whenever
+the configured highlight mode allows the link under it to be activated.
 
 Link activation is also gated by `linkHighlightMode`. The reporting mode chooses
 how links are discovered during tracking, while highlight mode decides whether a

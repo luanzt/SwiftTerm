@@ -167,6 +167,23 @@ final class SelectionTests: TerminalDelegate {
         #expect((highlightedAttributes[.underlineColor] as? NSColor)?.isEqual(highlightedColor) == true)
         #expect(highlightedAttributes[.underlineStyle] != nil)
     }
+
+    @Test func testLinkCursorRequiresConfiguredModifier() {
+        let view = TerminalView(frame: CGRect(origin: .zero, size: .init(width: 320, height: 160)))
+        view.linkHighlightMode = .hoverWithModifier
+        view.terminal.feed(text: "\u{001B}]8;;https://example.com\u{0007}link\u{001B}]8;;\u{0007}")
+
+        let linkPosition = Position(col: 1, row: 0)
+        #expect(view.linkCursor(
+            at: linkPosition,
+            hasCommandModifier: false) === NSCursor.iBeam)
+        #expect(view.linkCursor(
+            at: linkPosition,
+            hasCommandModifier: true) === NSCursor.pointingHand)
+        #expect(view.linkCursor(
+            at: Position(col: 10, row: 0),
+            hasCommandModifier: true) === NSCursor.iBeam)
+    }
 #endif
 
     // MARK: - Selection Tests Ported from Ghostty
