@@ -17,6 +17,7 @@ private func asciiScalar(_ value: UInt8) -> UnicodeScalar {
 
 private func makeBuffer(cols: Int, rows: Int, scrollback: Int?) -> Buffer {
     let buffer = Buffer(cols: cols, rows: rows, tabStopWidth: 8, scrollback: scrollback)
+    buffer.reflowOnResize = true
     buffer.scroll = { _ in }
     buffer.fillViewportRows()
     return buffer

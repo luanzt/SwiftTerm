@@ -788,11 +788,22 @@ open class Terminal {
     }
     
     public func resetNormalBuffer() {
+        let shouldReflowOnResize = normalBuffer.reflowOnResize
         normalBuffer = Buffer(cols: cols, rows: rows, tabStopWidth: tabStopWidth, scrollback: options.scrollback)
+        normalBuffer.reflowOnResize = shouldReflowOnResize
         normalBuffer.scroll = { [weak self] wrapped in self?.scroll(isWrapped: wrapped) }
 
         normalBuffer.fillViewportRows()
         normalBuffer.setupTabStops(tabStopWidth: tabStopWidth)
+    }
+
+    /// Controls whether normal-buffer lines are rewrapped when the terminal is
+    /// resized. This is useful for foreground programs that render a static
+    /// layout and do not repaint it after SIGWINCH. It can be disabled again at
+    /// a shell prompt whose renderer handles SIGWINCH itself.
+    public var reflowOnResize: Bool {
+        get { normalBuffer.reflowOnResize }
+        set { normalBuffer.reflowOnResize = newValue }
     }
     
     private func activateNormalBuffer(clearAlt: Bool) {
