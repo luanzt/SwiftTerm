@@ -67,6 +67,19 @@ public protocol LocalProcessTerminalViewDelegate: AnyObject {
 open class LocalProcessTerminalView: TerminalView, TerminalViewDelegate, LocalProcessDelegate {
     
     public internal(set) var process: LocalProcess!
+    private var pendingProcessWindowSize: (cols: Int, rows: Int)?
+
+    /// When enabled, terminal grid resizes remain local to the view and the
+    /// latest size is held back from the child PTY. Turning this off flushes the
+    /// newest size once. Embedders can use this while an interactive shell is
+    /// idle to avoid sending a SIGWINCH for every intermediate drag width.
+    public var defersProcessWindowSizeUpdates = false {
+        didSet {
+            if oldValue && !defersProcessWindowSizeUpdates {
+                flushPendingProcessWindowSize()
+            }
+        }
+    }
 
     public override init (frame: CGRect)
     {
@@ -98,6 +111,23 @@ open class LocalProcessTerminalView: TerminalView, TerminalViewDelegate, LocalPr
         guard process.running else {
             return
         }
+        if defersProcessWindowSizeUpdates {
+            pendingProcessWindowSize = (newCols, newRows)
+            return
+        }
+        applyProcessWindowSize(newCols: newCols, newRows: newRows)
+    }
+
+    private func flushPendingProcessWindowSize() {
+        guard let pendingProcessWindowSize else { return }
+        self.pendingProcessWindowSize = nil
+        guard process.running else { return }
+        applyProcessWindowSize(
+            newCols: pendingProcessWindowSize.cols,
+            newRows: pendingProcessWindowSize.rows)
+    }
+
+    private func applyProcessWindowSize(newCols: Int, newRows: Int) {
         var size = getWindowSize()
         let _ = PseudoTerminalHelpers.setWinSize(masterPtyDescriptor: process.childfd, windowSize: &size)
         
