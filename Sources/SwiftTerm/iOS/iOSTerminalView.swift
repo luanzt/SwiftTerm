@@ -268,6 +268,7 @@ open class TerminalView: UIScrollView, UITextInputTraits, UIKeyInput, UIScrollVi
     // Cache for the colors in the 0..255 range
     var colors: [UIColor?] = Array(repeating: nil, count: 256)
     var trueColors: [Attribute.Color:UIColor] = [:]
+    var trueColorOverrides: [UInt32: UInt32] = [:]
     var transparent = TTColor.transparent ()
     private var lastLayoutBounds: CGRect = .zero
     

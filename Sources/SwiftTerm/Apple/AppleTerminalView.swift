@@ -150,6 +150,25 @@ extension TerminalView {
         self.colors = Array(repeating: nil, count: 256)
         self.trueColors = [:]
     }
+
+    /// Replaces exact 24-bit truecolor values at render time without changing the
+    /// terminal buffer. Passing an empty dictionary restores literal rendering.
+    public func installTrueColorOverrides(_ overrides: [UInt32: UInt32]) {
+        let mask: UInt32 = 0x00FF_FFFF
+        var normalized: [UInt32: UInt32] = [:]
+        for (source, target) in overrides.sorted(by: { $0.key < $1.key }) {
+            normalized[source & mask] = target & mask
+        }
+        guard normalized != trueColorOverrides else { return }
+
+        trueColorOverrides = normalized
+        resetCaches()
+        #if os(macOS)
+        needsDisplay = true
+        #else
+        setNeedsDisplay(frame)
+        #endif
+    }
     
     // This is invoked when the font changes to recompute state
     func resetFont()
@@ -370,10 +389,16 @@ extension TerminalView {
             if let tc = trueColors [color] {
                 return tc
             }
-            let newColor = TTColor.make(red: CGFloat (r) / 255.0,
-                                        green: CGFloat (g) / 255.0,
-                                        blue: CGFloat (b) / 255.0,
-                                        alpha: 1.0)
+            let source = (UInt32(r) << 16) | (UInt32(g) << 8) | UInt32(b)
+            let rendered = trueColorOverrides[source] ?? source
+            let renderedRed = UInt8((rendered >> 16) & 0xFF)
+            let renderedGreen = UInt8((rendered >> 8) & 0xFF)
+            let renderedBlue = UInt8(rendered & 0xFF)
+            let newColor = TTColor.make(
+                red: CGFloat(renderedRed) / 255.0,
+                green: CGFloat(renderedGreen) / 255.0,
+                blue: CGFloat(renderedBlue) / 255.0,
+                alpha: 1.0)
             
             trueColors [color] = newColor
             return newColor

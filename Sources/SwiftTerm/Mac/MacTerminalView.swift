@@ -292,6 +292,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     // Cache for the colors in the 0..255 range
     var colors: [NSColor?] = Array(repeating: nil, count: 256)
     var trueColors: [Attribute.Color:NSColor] = [:]
+    var trueColorOverrides: [UInt32: UInt32] = [:]
     var transparent = TTColor.transparent ()
     var isBigSur = true
     
