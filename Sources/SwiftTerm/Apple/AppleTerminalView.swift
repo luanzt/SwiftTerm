@@ -166,7 +166,7 @@ extension TerminalView {
         #if os(macOS)
         needsDisplay = true
         #else
-        setNeedsDisplay(frame)
+        setNeedsDisplay(bounds)
         #endif
     }
     
