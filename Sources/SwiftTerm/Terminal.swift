@@ -1094,6 +1094,13 @@ open class Terminal {
     {
         parser.oscHandlers [code] = handler
     }
+
+    /// Removes a previously registered OSC override and restores built-in handling
+    /// for that code. Removing a code without a custom handler is a no-op.
+    public func unregisterOscHandler(code: Int)
+    {
+        parser.oscHandlers.removeValue(forKey: code)
+    }
     
     func cmdSet8BitControls ()
     {

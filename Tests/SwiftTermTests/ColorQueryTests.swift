@@ -75,4 +75,30 @@ final class ColorQueryTests {
         #expect(delegate.cursorColors.last! == nil)
         #expect(terminal.cursorColor == nil)
     }
+
+    @Test func testUnregisterOscHandlerRestoresBuiltInColorQueryHandling() {
+        let delegate = TestDelegate()
+        let terminal = Terminal(
+            delegate: delegate,
+            options: TerminalOptions(cols: 80, rows: 24, scrollback: 0)
+        )
+        terminal.backgroundColor = Color(red: 0x4444, green: 0x5555, blue: 0x6666)
+
+        var interceptedPayloads: [String] = []
+        terminal.registerOscHandler(code: 11) { payload in
+            interceptedPayloads.append(String(decoding: payload, as: UTF8.self))
+        }
+        terminal.feed(text: "\u{1b}]11;?\u{07}")
+
+        #expect(interceptedPayloads == ["?"])
+        #expect(delegate.sent.isEmpty)
+
+        terminal.unregisterOscHandler(code: 11)
+        terminal.unregisterOscHandler(code: 11)
+        terminal.feed(text: "\u{1b}]11;?\u{07}")
+
+        #expect(delegate.sent == [
+            bytes("\u{1b}]11;rgb:4444/5555/6666\u{1b}\\")
+        ])
+    }
 }
