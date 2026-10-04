@@ -507,4 +507,34 @@ struct MouseTrackingTests {
         terminal.feed(text: "\(esc)[?1003l")
         #expect(terminal.mouseMode == .off)
     }
+
+#if os(macOS)
+    @Test @MainActor func outputKeepsSelectionWhileMouseTrackingIsOff() {
+        let view = TerminalView(frame: CGRect(x: 0, y: 0, width: 320, height: 160))
+        view.feed(text: "first line\r\nsecond line\r\n")
+        view.selection.setSoftStart(bufferPosition: Position(col: 0, row: 0))
+        view.selection.startSelection()
+        view.selection.dragExtend(bufferPosition: Position(col: 6, row: 1))
+
+        // A spinner repaint and a new line stream in mid-drag.
+        view.feed(text: "\r\(esc)[2K| working")
+        view.feed(text: "\r\nmore output\r\n")
+
+        #expect(view.terminal.mouseMode == .off)
+        #expect(view.selectionActive)
+        #expect(view.getSelection() == "first line\nsecond")
+    }
+
+    @Test @MainActor func outputClearsSelectionWhileMouseTrackingIsOn() {
+        let view = TerminalView(frame: CGRect(x: 0, y: 0, width: 320, height: 160))
+        view.feed(text: "\(esc)[?1000hfirst line\r\n")
+        view.selection.setSoftStart(bufferPosition: Position(col: 0, row: 0))
+        view.selection.startSelection()
+        view.selection.dragExtend(bufferPosition: Position(col: 5, row: 0))
+
+        view.feed(text: "x")
+
+        #expect(!view.selectionActive)
+    }
+#endif
 }

@@ -2213,11 +2213,18 @@ extension TerminalView {
         scrollTo (row: newPosition)
     }
       
+    /// Output only invalidates a manual selection while the running program
+    /// has mouse tracking enabled. With tracking off, a streaming program
+    /// (spinner, status line, prompt redraw) must not dismiss a selection the
+    /// user is still dragging out.
+    var outputClearsSelection: Bool {
+        allowMouseReporting && terminal.mouseMode != .off
+    }
+
     func feedPrepare()
     {
         search.invalidate()
-        // Preserve manual selection while output is streaming when mouse reporting is disabled.
-        if allowMouseReporting {
+        if outputClearsSelection {
             selection.active = false
         }
         startDisplayUpdates()
