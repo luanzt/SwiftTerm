@@ -573,7 +573,8 @@ public final class Buffer {
                     lines.trimStart(count: amountToTrim)
                     yBase = max(yBase - amountToTrim, 0)
                     yDisp = max(yDisp - amountToTrim, 0)
-                    savedY = max(savedY - amountToTrim, 0)
+                    // savedY is screen-relative (DECSC stores `y`), and only
+                    // history above the screen was trimmed, so it stays put.
                 }
                 lines.maxLength = newMaxLength
             }

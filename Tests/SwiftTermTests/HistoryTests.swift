@@ -93,4 +93,27 @@ final class HistoryTests {
         terminal.changeHistorySize(nil)
         #expect(terminal.buffer.lines.maxLength == 25) // 25 rows only
     }
+
+    /// The saved cursor is screen-relative, so trimming history above the
+    /// screen must not move it: leaving an alternate-screen program after the
+    /// limit was lowered has to restore the prompt row, not row 0.
+    @Test func testShrinkingHistoryKeepsSavedCursorRow() {
+        let delegate = TestDelegate()
+        let options = TerminalOptions(cols: 80, rows: 25, scrollback: 100)
+        let terminal = Terminal(delegate: delegate, options: options)
+        for i in 0..<200 {
+            terminal.feed(text: "line \(i)\r\n")
+        }
+        terminal.feed(text: "\u{1b}[20;5H")
+        let row = terminal.buffer.y
+        let col = terminal.buffer.x
+
+        terminal.feed(text: "\u{1b}[?1049h")
+        terminal.changeScrollback(10)
+        terminal.feed(text: "\u{1b}[?1049l")
+
+        #expect(terminal.buffer.y == row)
+        #expect(terminal.buffer.x == col)
+        #expect(terminal.buffer.lines.count == 35)
+    }
 }
